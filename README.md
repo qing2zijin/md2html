@@ -1,4 +1,4 @@
-# md2html
+# staticblog
 基于markdown和python的静态博客（网站）生成器
 
 ## 前言
