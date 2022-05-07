@@ -5,13 +5,21 @@
 版权归@qing2zijin所有，请勿擅自商业化。
 
 ## 所需的文件及文件夹
-`create.py`：程序
+`main.py`：程序
 
 `source` ：将需要的markdown文件存放于此处
 
 `posts` ：程序自动将转换好的html文件存放于此处
 
 `template`：网页模板，目前有导航页和文章页模板
+
+## 所需用到的库
+
+1. `markdown` `pip install markdown`
+2. `os`
+3. `re`
+4. `threading`
+5. `time`
 
 ## 使用方法
 ```
@@ -26,8 +34,8 @@ python main.py
 title:标题
 date:时间
 tags:标签
-keyword:
-description:
+keywords:关键词
+description:文章摘要
 priv:是否保密
 top:是否置顶
 -->
