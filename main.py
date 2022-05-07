@@ -17,18 +17,18 @@ class thread_str(object):
         print("采取分段分块进行网页的生成，该段区间为[%s , %s)" %(self.first, self.last))
         
 class Node:  #用于存放数据的结点，搭配数组使用
-    def __init__(self, title=None, date=None, tags=None, topping=None, md_url=None, kwds=None, descri=None):
+    def __init__(self, title=None, date=None, tags=None, md_url=None,topping=None, kwds=None, descri=None):
         self.title = title              #标题
         self.date = date                #创建时间
         self.tags = tags                #标签
-        self.topping = topping          #是否置顶
         self.md_url = md_url            #makdown文章地址
-        self.keyword = kwds
+        self.topping = topping
+        self.keywords = kwds
         self.description = descri
 
 class md2html(object):
     pages = 0
-    articleMax = 15                      #设置每页文章数
+    articleMax = 20                      #设置每页文章数
     post_num = 0
     is_only2page = False                 #总共只有2页判断
     template_post = None
@@ -51,7 +51,7 @@ class md2html(object):
         pattern_tags = 'tags:(.*?)\n'         #文章标签
         pattern_private = 'priv:(.*?)\n'      #文章是否保密,保密文章不收录到目录中。
         pattern_topping = 'top:(.*?)\n'       #文章是否置顶
-        pattern_keywords = 'keyword:(.*?)\n'  #文章关键词
+        pattern_keywords = 'keywords:(.*?)\n'  #文章关键词
         pattern_description = 'description:(.*?)\n' #文章摘要
         
         try:  #尝试读取标题
@@ -71,17 +71,18 @@ class md2html(object):
           tags = tg[0].replace(" ", "").replace("[", "").replace("]", "")
         except:
           tags = 'life'
+          
         try:  #尝试读取关键词
-          kwd = re.compile(pattern_keywords, re.S).findall(raw_Data)
-          kwds = kwd[0].replace(" ", "")
+          kwds = re.compile(pattern_keywords, re.S).findall(raw_Data)
+          keywords = kwds[0].replace(" ", "")
         except:
-          tags = title + ',' + self.site_name        
-        
+          keywords = title + ',' + self.site_name
+
         try:  #尝试读取内容摘要
           descri = re.compile(pattern_description, re.S).findall(raw_Data)
           description = descri[0].replace(" ", "")
         except:
-          tags = title
+          description = title
         
         try:  #尝试读取是否置顶
           top = re.compile(pattern_topping, re.S).findall(raw_Data)
@@ -94,15 +95,16 @@ class md2html(object):
           private = pri[0]
         except:
           private = "No"
+          
         if(private.replace(" ", "") == "No"):
-            self.arr.append(Node(title, date, tags,topping, full_Raw_URL, kwds, description))
+            self.arr.append(Node(title, date, tags, full_Raw_URL, topping, keywords, description))
         else:
-            print("文章：《%s》保密，不生成HTML"%title) 
-    #title, date, tags,topping, full_Raw_URL, kwds, description
+            print("文章：《%s》保密，不生成HTML %s"%(title, full_Raw_URL) ) 
+    #title, date, tags, full_Raw_URL, topping, kwds, description
 
     def PrintArr(self):
         for n in self.arr:
-            print("标题：%s，是否置顶：%s，创建时间：%s"%(n.title, n.topping, n.date))
+            print("标题：%s，创建时间：%s"%(n.title, n.date))
         print('\n\n')
 
     def HTML_url(self, md_Rurl):
@@ -112,12 +114,12 @@ class md2html(object):
         prev_article = None  # 时间距离最远的文章为 上一篇 列表序号最大处
         next_article = None  # 时间距离最近的文章为 下一篇 列表序号为0处
         if(FF == 0):
-            next_article = ""
+            next_article = "下一篇：没有了"
         else:
             next_article = '下一篇：<a href="'+self.HTML_url(self.arr[FF-1].md_url)+'">'+self.arr[FF-1].title+'</a>' #<a href="{{next_article}}">下一篇</a>
         
         if(FF == self.post_num-1):
-            prev_article = ""
+            prev_article = "上一篇：没有了"
         else:
             prev_article = '上一篇：<a href="'+self.HTML_url(self.arr[FF+1].md_url)+'">'+self.arr[FF+1].title+'</a>' #<a href="{{prev_article}}">上一篇</a>
         
@@ -126,10 +128,7 @@ class md2html(object):
         
         out_path = 'posts/'+self.HTML_url(self.arr[FF].md_url)  #输出地址及HTML文件名称结构
         
-        html_content = markdown.markdown(raw_Data,extensions=['markdown.extensions.toc',
-                     'markdown.extensions.tables',
-                     # 'markdown.extensions.tables'
-                     ])        
+        html_content = markdown.markdown(raw_Data,extensions=['markdown.extensions.toc','markdown.extensions.tables','markdown.extensions.fenced_code'])
         post_html_content = self.template_post.replace('{{title}}', self.arr[FF].title)\
         .replace('{{site-name}}',self.site_name)\
         .replace('{{date}}', self.arr[FF].date)\
@@ -137,10 +136,12 @@ class md2html(object):
         .replace('{{tags}}', self.arr[FF].tags)\
         .replace('{{prev_article}}',prev_article)\
         .replace('{{next_article}}',next_article)\
+        .replace('{{keywords}}', self.arr[FF].keywords)\
+        .replace('{{description}}',self.arr[FF].description)
         
         with open(out_path, 'w', encoding='utf-8', errors='xmlcharrefreplace') as out_File:
             out_File.write(post_html_content)
-        print('使用线程%s生成文章：《%s》,其标签为：%s，是否置顶%s'%(str, self.arr[FF].title, self.arr[FF].tags, self.arr[FF].topping))
+        # print('使用线程%s生成文章：《%s》,其标签为：%s'%(str, self.arr[FF].title, self.arr[FF].tags))
         
     def parse_main(self, thread_str, str):    #线程调用函数
         first = thread_str.first
@@ -149,6 +150,7 @@ class md2html(object):
             self.parse_to_HTML(i, str)             
 
     def preFunc(self):  #预先处理
+        
         #读取模板存到内存中
         try:
             with open('template/post_tem.html','r',encoding='utf-8') as aa:
@@ -157,10 +159,10 @@ class md2html(object):
                 self.template_nav= bb.read()
             with open('template/archive_post_detail.html','r',encoding='utf-8') as cc:
                 archive_post_detaildata = cc.read()
-            self.archive_post_detail = re.compile('archive_post:(.*?\n)', re.S).findall(archive_post_detaildata)
+            self.archive_post_detail = re.compile('archive_post:(.*?)\n', re.S).findall(archive_post_detaildata)
         except:
             return False
-            
+           
         for x in self.findAllFile():
             self.GetmdDetail(x)          
         self.post_num = len(self.arr)
@@ -220,6 +222,7 @@ class md2html(object):
         temp_id_r = '''<a class="next" href="{{right-link}}"><span class="next-text">Next</span></a>'''
         
         if (self.post_num <= self.articleMax): #只有一页 a
+            print("a")
             s1 = ''
             for i in range(0, self.post_num):   
                 a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
@@ -234,13 +237,13 @@ class md2html(object):
                 .replace('{{nav}}',''))                 
 
         elif(self.pages == 1): #第一页没有pre b
+            print("b")
             s1 = ''
             for i in range(0, self.articleMax):    
                 a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                 .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                 .replace('{{post_name}}',self.arr[i].title)       
                 s1 =  s1+a
-                
             with open('index.html','w',encoding='utf-8') as pg:
                 pg.write(self.template_nav\
                 .replace('{{page_nav}}',s1)\
@@ -248,21 +251,22 @@ class md2html(object):
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}',temp_id_r.replace('{{right-link}}','pages/'+str(self.pages+1)+'.html')))
         elif(self.pages == 2 and (self.is_only2page != True) ): #由递归衰减而到的第2页 c
+            print("c")
             s1 = ''
             for i in range(self.articleMax, self.pages*self.articleMax):   
                 a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                 .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                 .replace('{{post_name}}',self.arr[i].title)       
                 s1 =  s1+a
-                
             with open('pages/'+str(self.pages)+'.html','w',encoding='utf-8') as pg:
                 pg.write(self.template_nav\
                 .replace('{{page_nav}}',s1)\
                 .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
                 .replace('{{site-name}}',self.site_name)\
-                .replace('{{nav}}', temp_id_l.replace('{{left-link}}','/')+temp_id_r.replace('{{right-link}}',str(self.pages+1)+'.html')))
+                .replace('{{nav}}', temp_id_l.replace('{{left-link}}','../index.html')+temp_id_r.replace('{{right-link}}',str(self.pages+1)+'.html')))
                 
         elif(self.is_only2page): #如果一开始就是只有2页便执行如下代码 d
+            print("d")
             s1 = ''
             for i in range(self.articleMax, self.post_num):   
                 a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
@@ -275,10 +279,11 @@ class md2html(object):
                 .replace('{{page_nav}}',s1)\
                 .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
                 .replace('{{site-name}}',self.site_name)\
-                .replace('{{nav}}', temp_id_l.replace('{{left-link}}','/')))
+                .replace('{{nav}}', temp_id_l.replace('{{left-link}}','../index.html')))
 
         # elif((self.pages+1)*self.articleMax >= self.post_num and (self.pages*self.articleMax <= self.post_num ) ): #最后一页 e
         elif(self.pages*self.articleMax >= self.post_num and ((self.pages-1)*self.articleMax <= self.post_num ) ):
+            print("e")
             s1 = '' 
             for i in range((self.pages-1)*self.articleMax, self.post_num):
                 a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
@@ -294,6 +299,7 @@ class md2html(object):
                 .replace('{{nav}}', temp_id_l.replace('{{left-link}}',str(self.pages-1)+'.html')))
 
         else:  #一般页面 f
+            print("f")
             s1 = ''
             for i in range((self.pages-1)*self.articleMax, (self.pages-1)*self.articleMax+self.articleMax):
                 a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
