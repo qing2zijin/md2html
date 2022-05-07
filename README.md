@@ -15,7 +15,7 @@
 
 ## 使用方法
 ```
-python create.py
+python main.py
 ```
 
 
@@ -26,6 +26,8 @@ python create.py
 title:标题
 date:时间
 tags:标签
+keyword:
+description:
 priv:是否保密
 top:是否置顶
 -->
