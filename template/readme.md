@@ -1,8 +1,9 @@
 模板页面
 
-下面是几个核心关键词
+下面是几个核心关键词 keywords
 
-## home_tem.html
+## archive_tem.html
+`{{md_html}}`：各个文章的链接
 `{{page_nav}}`：首页文章链接
 
  `{{nav}} `：上下页面链接
@@ -14,7 +15,7 @@
  
  `{{next_article}}`：下一页面链接
  
- ## 公共的
+ ## public tags
  `{{title}}`：标题
  
  `{{site-name}}`：站点名称
