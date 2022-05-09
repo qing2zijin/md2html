@@ -22,24 +22,21 @@
 5. `time`
 
 ## 使用方法
-```
-python main.py
-```
-
+命令：`python main.py`
 
 ## 文章样式&文件格式
 所有文章样式是：
 ```
-<!--
-title:标题
-date:时间
-tags:标签
-keywords:关键词
-description:文章摘要
-priv:是否保密
-top:是否置顶
--->
-内容
+---
+title:
+date: such as 2022-05-09 22:06:00
+tags: such as life or life, study
+keywords:
+description:
+priv: write Yes or No
+top: write Yes or No
+---
+ write content here
 ```
 post-contents
 
