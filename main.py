@@ -18,19 +18,20 @@ class thread_str(object):
         self.last = last
         print("采取分段分块进行网页的生成，该段区间为[%s , %s)" %(self.first, self.last))
         
-class Node:  #用于存放数据的结点，搭配数组使用
-    def __init__(self, title=None, date=None, tags=None, md_url=None,topping=None, kwds=None, descri=None):
+class Node:  #用于存放数据的结点，搭配列表使用
+    def __init__(self, title=None, date=None, tags=None, md_url=None,topping=None, is_archive=None,kwds=None, descri=None):
         self.title = title              #标题
         self.date = date                #创建时间
         self.tags = tags                #标签
         self.md_url = md_url            #makdown文章地址
         self.topping = topping          #置顶
+        self.is_archive = is_archive    #archive页收录
         self.keywords = kwds            #文章关键词 
         self.description = descri       #文章摘要
 
 class md2html(object):
     pages = 0                            #页数
-    articleMax = 20                      #设置每页文章数
+    articleMax = 30                      #设置每页文章数
     post_num = 0                         #文章数量
     is_only2page = False                 #总共只有2页判断
     template_post = None                 #文章模板
@@ -38,7 +39,10 @@ class md2html(object):
     archlink_Detail = None               #archive页文章链接处细节模板
     page_nav_l = None                    #各个pages里面prev next按钮
     page_nav_r = None    
-    def __init__(self, base, site_name):
+    pattern = ['title:(.*?)\n', 'date:(.*?)\n', 'tags:(.*?)\n', 'priv:(.*?)\n', \
+                'top:(.*?)\n', 'is_archive:(.*?)\n', 'keywords:(.*?)\n', 'description:(.*?)\n' ] 
+    tagg = [ "无标题", "1997-01-01 19:12:00", "life", "No", "No", "Yes", "", "" ]
+    def __init__(self, base=None, site_name=None, site_UL=None):
         self.base = base
         self.site_name = site_name
         self.arr = []
@@ -47,93 +51,76 @@ class md2html(object):
             for f in fs:
                 yield os.path.join(root,f)
  
-    def GetmdDetail(self, full_Raw_URL):    
-        if full_Raw_URL is not None: #传递的不是空地址
-            with open(full_Raw_URL, 'r', encoding='utf-8') as raw_File:
-                raw_Data = raw_File.read()
-            pattern_title = 'title:(.*?)\n'       #文章标题
-            pattern_date = 'date:(.*?)\n'         #文章日期
-            pattern_tags = 'tags:(.*?)\n'         #文章标签
-            pattern_private = 'priv:(.*?)\n'      #文章是否保密,保密文章不收录到目录中。
-            pattern_topping = 'top:(.*?)\n'       #文章是否置顶
-            pattern_keywords = 'keywords:(.*?)\n'  #文章关键词
-            pattern_description = 'description:(.*?)\n' #文章摘要
-            
-            try:  #尝试读取标题
-              ti = re.compile(pattern_title, re.S).findall(raw_Data)
-              title = ti[0].replace(" ", "")
+    def GetmdDetail(self, md_addr):    
+        if md_addr is not None: #传递的不是空地址
+            try:
+                with open(md_addr, 'r', encoding='utf-8') as raw_File:
+                    raw_Data = raw_File.read()
             except:
-              title = '无标题'
-              
-            try:  #尝试读取日期
-              da = re.compile(pattern_date, re.S).findall(raw_Data)
-              date = da[0]
-            except:
-              date = '1997-01-01 19:12:00'
-              
-            try:  #尝试读取标签
-              tg = re.compile(pattern_tags, re.S).findall(raw_Data)
-              tags = tg[0].replace(" ", "").replace("[", "").replace("]", "")
-            except:
-              tags = 'life'
-              
-            try:  #尝试读取关键词
-              kwds = re.compile(pattern_keywords, re.S).findall(raw_Data)
-              keywords = kwds[0].replace(" ", "")
-            except:
-              keywords = title + ',' + self.site_name
-
-            try:  #尝试读取内容摘要
-              descri = re.compile(pattern_description, re.S).findall(raw_Data)
-              description = descri[0].replace(" ", "")
-            except:
-              description = title
-            
-            try:  #尝试读取是否置顶
-              top = re.compile(pattern_topping, re.S).findall(raw_Data)
-              topping = top[0].replace(" ", "")
-            except:
-              topping = 'No'
-
-            try:  #尝试读取是否保密
-              pri = re.compile(pattern_private, re.S).findall(raw_Data)
-              private = pri[0]
-            except:
-              private = "No"
-              
-            if(private.replace(" ", "") == "No"):
-                self.arr.append(Node(title, date, tags, full_Raw_URL, topping, keywords, description))
+                print("文件地址不对！")
+                return None
+            '''
+              说明：采取的是列表之间对比，列表needthing作为匹配结果，列表tagg作为设置的原始值，
+            '''
+            needthing = [] #title 0, date 1, tags 2, private 3, topping 4, is_archive 5, keywords 6, description 7
+            length = len(self.pattern)
+            for k in range(length):
+                matchaddr = re.search(self.pattern[k], raw_Data, re.S)  #循环匹配
+                if matchaddr is not None:           #排查：如果md文件里面没有设置参数
+                    needthing.append(matchaddr.group(1))
+                else:
+                    needthing.append(self.tagg[k])
+            for m in range(length):
+                if needthing[m].replace(" ", "") == "":       #排查：如果md文件里面设置了参数但是没值
+                    if m == 6:
+                        needthing[m] = needthing[0] + "," + self.site_name   #keywords
+                    elif m == 7:
+                        needthing[m] = needthing[0]             #description
+                    else:
+                        needthing[m] = self.tagg[m] 
+            if(needthing[3] == "No"):
+                '''           
+                这里有点多此一举，不过这个程序以前的版本：元素最开始不是存储在列表needthing里面的。
+                而现在为了节省代码量就使用了列表needthing，其实是可以直接插入列表的，形成二维列表，不过后面的形式要更改，
+                捡懒就这样了。
+                '''
+                self.arr.append(Node(needthing[0], needthing[1], needthing[2], md_addr, needthing[4], needthing[5], needthing[6], needthing[7]))
             else:
-                print("文章：《%s》保密，不生成HTML %s"%(title, full_Raw_URL) ) 
-            #title, date, tags, full_Raw_URL, topping, kwds, description
+                print("文章：《%s》保密%s，不生成HTML，地址为：%s\n"%(needthing[0], needthing[3], md_addr) ) 
+            del needthing
         else:
             return None
             
     def PrintArr(self):
         for n in self.arr:
-            print("《%s》，写于：%s"%(n.title, n.date))
+            print("《%s》，写于：%s，%s"%(n.title, n.date, n.md_url))
         print('\n')
 
-    def HTML_url(self, md_Rurl):
-        return ( '%s.html'%(os.path.basename(md_Rurl).lower().replace('.md', '')) )
+    def HTML_url(self, md_addr, parse_to_html=None):
+        if parse_to_html == True:
+            return  md_addr.replace("source", "/posts").replace("\\", "/").replace(".md", ".html") 
+        else:
+            return  md_addr.replace("source", "posts").replace("\\", "/").replace(".md", ".html")
+        #return ( '%s.html'%(os.path.basename(md_addr).lower().replace('.md', '')) )
         
     def parse_to_HTML(self, listNumber, str):
         prev_article = None  # 时间距离最远的文章为 上一篇 列表序号最大处方向
         next_article = None  # 时间距离最近的文章为 下一篇 列表序号为0处方向
+        
         if(0 == listNumber):
             next_article = "下一篇：没有了"
         else:
-            next_article = '下一篇：<a href="'+self.HTML_url(self.arr[listNumber-1].md_url)+'">'+self.arr[listNumber-1].title+'</a>' #<a href="{{next_article}}">下一篇</a>
+            next_article = '下一篇：<a href="'+self.HTML_url(self.arr[listNumber-1].md_url, True)+'">'+self.arr[listNumber-1].title+'</a>' #<a href="{{next_article}}">下一篇</a>
         
         if(self.post_num-1 == listNumber):
             prev_article = "上一篇：没有了"
         else:
-            prev_article = '上一篇：<a href="'+self.HTML_url(self.arr[listNumber+1].md_url)+'">'+self.arr[listNumber+1].title+'</a>' #<a href="{{prev_article}}">上一篇</a>
+            prev_article = '上一篇：<a href="'+self.HTML_url(self.arr[listNumber+1].md_url, True)+'">'+self.arr[listNumber+1].title+'</a>' #<a href="{{prev_article}}">上一篇</a>
         
         with open(self.arr[listNumber].md_url, 'r', encoding='utf-8') as raw_File:
             raw_Data = raw_File.read()        
-        
-        out_path = 'posts/'+self.HTML_url(self.arr[listNumber].md_url)  #输出地址及HTML文件名称结构
+
+        out_path = self.HTML_url(self.arr[listNumber].md_url)  #输出地址及HTML文件名称结构
         html_content = markdown.markdown(raw_Data,extensions=[ \
                                # 'markdown.extensions.toc',\
                                'markdown.extensions.tables', \
@@ -141,93 +128,48 @@ class md2html(object):
                                'markdown.extensions.meta'] \
                                )
         post_html_content = self.template_post.replace('{{title}}', self.arr[listNumber].title)\
-        .replace('{{site-name}}',self.site_name)\
-        .replace('{{date}}', self.arr[listNumber].date)\
-        .replace('{{post-content}}', html_content)\
-        .replace('{{tags}}', self.arr[listNumber].tags)\
-        .replace('{{prev_article}}',prev_article)\
-        .replace('{{next_article}}',next_article)\
-        .replace('{{keywords}}', self.arr[listNumber].keywords)\
-        .replace('{{description}}',self.arr[listNumber].description)
+            .replace('{{site-name}}',self.site_name)\
+            .replace('{{date}}', self.arr[listNumber].date)\
+            .replace('{{post-content}}', html_content)\
+            .replace('{{tags}}', self.arr[listNumber].tags)\
+            .replace('{{prev_article}}',prev_article)\
+            .replace('{{next_article}}',next_article)\
+            .replace('{{keywords}}', self.arr[listNumber].keywords)\
+            .replace('{{description}}',self.arr[listNumber].description)
         
         with open(out_path, 'w', encoding='utf-8', errors='xmlcharrefreplace') as out_File:
             out_File.write(post_html_content)
-        # print('使用线程%s生成文章：《%s》,其标签为：%s'%(str, self.arr[listNumber].title, self.arr[listNumber].tags))
+        print('使用线程%s生成文章：《%s》,其标签为：%s，地址在：%s'%(str, self.arr[listNumber].title, self.arr[listNumber].tags, out_path))
         
     def parse_main(self, thread_str, str):    #线程调用函数
         first = thread_str.first
         last = thread_str.last
         for i in range(first,last):
-            self.parse_to_HTML(i, str)             
-
-    def preFunc(self):  #预先处理
-        '''预先判定这几个文件夹是否存在： source  posts  pages   template   '''
-        if os.path.isdir(self.base) and os.path.isdir("posts") and os.path.isdir("pages") and os.path.isdir("template"):
-            '''判断这几个模板文件是否存在'''
-            if os.path.isfile('template/post_tem.html') and os.path.isfile('template/archive_tem.html') and os.path.isfile('template/archlink_Detail.html'):
-                with open('template/post_tem.html','r',encoding='utf-8') as aa:
-                    self.template_post = aa.read()
-                with open('template/archive_tem.html','r',encoding='utf-8') as bb:
-                    self.template_acrchive= bb.read()
-                with open('template/archlink_Detail.html','r',encoding='utf-8') as cc:
-                    archlink_Detail_data = cc.read()
-                self.archlink_Detail = re.compile('archive_post:(.*?)\n', re.S).findall(archlink_Detail_data)
-                self.page_nav_l = re.compile('page_nav_l:(.*?)\n', re.S).findall(archlink_Detail_data) 
-                self.page_nav_r = re.compile('page_nav_r:(.*?)\n', re.S).findall(archlink_Detail_data)
+            if i < 5:             #默认解析列表前5篇文章
+                self.parse_to_HTML(i, str)
+            elif os.path.isfile(self.HTML_url(self.arr[i].md_url) ):  #如果后面的存在就不解析，不存在就解析               
+                continue
             else:
-                print("模板文件夹里面欠缺必要的文件！")
-                return False
-               
-            for md in self.findAllFile():
-                self.GetmdDetail(md)          
-            self.post_num = len(self.arr)
-        
-            if self.post_num >=2:
-                #排序
-                for i in range(1, self.post_num):#这里不需要-1，因为下面已经有j = i-1，否则在-数组最后一个排不到
-                    key = self.arr[i] 
-                    j = i-1 
-                    while j>=0 and key.date.replace("-", "").replace(":", "").replace(" ", "") > self.arr[j].date.replace("-", "").replace(":", "").replace(" ", ""):
-                        self.arr[j+1] = self.arr[j]
-                        j-=1
-                    self.arr[j+1] = key
-                #置顶
-                topArr = []
-                top = self.post_num-1
-                while top>=0:
-                    if(self.arr[top].topping.replace(" ", "") == "Yes"):
-                        topArr.insert(0,self.arr[top])    #插入到列表topArr中
-                        del (self.arr[top])               #删除列表arr中该元素
-                    top -= 1    
-                self.arr = topArr + self.arr              #两个列表合并
-                del topArr                                #删除列表topArr
-                # self.PrintArr()
-        
-            self.pages = (self.post_num//(self.articleMax+1)) + 1
-            print('博客导航有%s页，每页有%s篇文章（含隐藏页），总共有%s篇文章。'%(self.pages,self.articleMax, self.post_num))
-            if(self.pages == 2):
-                self.is_only2page = True      #判断一开始就是不是只有两个页面
-            return True                    #正常运行时，返回True
-        else:
-            print("请仔细检查source、posts、pages、template这三个文件夹是否存在！")
-            return False
-
-    def create_catalog(self):
+                self.parse_to_HTML(i, str)
+            
+    def Create_archive(self):
         print('生成目录中')
         temp = self.archlink_Detail[0]
         temp_first = self.archlink_Detail[1]
-        page_nav_l = self.page_nav_l[0]
-        page_nav_r = self.page_nav_r[0]
+        page_nav_l = self.page_nav_l
+        page_nav_r = self.page_nav_r
         
         if (self.post_num <= self.articleMax): #只有一页 a
             print("a")
             s1 = ''
             for i in range(0, self.post_num):   
-                a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
-                .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
-                .replace('{{post_name}}',self.arr[i].title)               
-                s1 =  s1+a
-                
+                if self.arr[i].is_archive == "Yes":
+                    a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
+                    .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
+                    .replace('{{post_name}}',self.arr[i].title)               
+                    s1 =  s1+a
+                else:
+                    continue
             with open('index.html','w',encoding='utf-8') as only_onepg:
                 only_onepg.write(self.template_acrchive.replace('{{page_nav}}',s1)\
                 .replace('{{title}}',self.site_name)\
@@ -238,10 +180,13 @@ class md2html(object):
             print("b")
             s1 = ''
             for i in range(0, self.articleMax):    
-                a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
-                .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
-                .replace('{{post_name}}',self.arr[i].title)       
-                s1 =  s1+a
+                if self.arr[i].is_archive == "Yes":
+                    a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
+                    .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
+                    .replace('{{post_name}}',self.arr[i].title)       
+                    s1 =  s1+a
+                else:
+                    continue
             with open('index.html','w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -252,10 +197,13 @@ class md2html(object):
             print("c")
             s1 = ''
             for i in range(self.articleMax, self.pages*self.articleMax):   
-                a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
-                .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
-                .replace('{{post_name}}',self.arr[i].title)       
-                s1 =  s1+a
+                if self.arr[i].is_archive == "Yes":
+                    a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
+                    .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
+                    .replace('{{post_name}}',self.arr[i].title)       
+                    s1 =  s1+a
+                else:
+                    continue
             with open('pages/'+str(self.pages)+'.html','w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -267,11 +215,13 @@ class md2html(object):
             print("d")
             s1 = ''
             for i in range(self.articleMax, self.post_num):   
-                a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
-                .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
-                .replace('{{post_name}}',self.arr[i].title)       
-                s1 =  s1+a
-                
+                if self.arr[i].is_archive == "Yes":     
+                    a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
+                    .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
+                    .replace('{{post_name}}',self.arr[i].title)       
+                    s1 =  s1+a
+                else:
+                    continue
             with open('pages/'+str(self.pages)+'.html','w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -283,11 +233,13 @@ class md2html(object):
             print("e")
             s1 = '' 
             for i in range((self.pages-1)*self.articleMax, self.post_num):
-                a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
-                .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
-                .replace('{{post_name}}',self.arr[i].title)       
-                s1 =  s1+a
-                
+                if self.arr[i].is_archive == "Yes":
+                    a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
+                    .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
+                    .replace('{{post_name}}',self.arr[i].title)       
+                    s1 =  s1+a
+                else:
+                    continue
             with open('pages/'+str(self.pages)+'.html','w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -298,10 +250,13 @@ class md2html(object):
             print("f")
             s1 = ''
             for i in range((self.pages-1)*self.articleMax, (self.pages-1)*self.articleMax+self.articleMax):
-                a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
-                .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
-                .replace('{{post_name}}',self.arr[i].title)       
-                s1 =  s1+a          
+                if self.arr[i].is_archive == "Yes":
+                    a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
+                    .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
+                    .replace('{{post_name}}',self.arr[i].title)       
+                    s1 =  s1+a
+                else:
+                    continue
             with open('pages/'+str(self.pages)+'.html','w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -311,18 +266,86 @@ class md2html(object):
                 str(self.pages+1)+'.html')))
         self.pages -=1
         if self.pages >0:
-            self.create_catalog()
+            self.Create_archive()
 
-    
+    def preFunc(self):  #预先处理
+        '''预先判定这几个文件夹是否存在： source  pages   template   '''
+        if os.path.isdir(self.base) and os.path.isdir("pages") and os.path.isdir("template"):
+            '''判断这几个模板文件是否存在'''
+            if os.path.isfile('template/post_tem.html') and os.path.isfile('template/archive_tem.html') and os.path.isfile('template/archlink_Detail.html'):
+                with open('template/post_tem.html','r',encoding='utf-8') as aa:
+                    self.template_post = aa.read()
+                with open('template/archive_tem.html','r',encoding='utf-8') as bb:
+                    self.template_acrchive= bb.read()
+                with open('template/archlink_Detail.html','r',encoding='utf-8') as cc:
+                    archlink_Detail_data = cc.read()
+                self.archlink_Detail = re.compile('archive_post:(.*?)\n', re.S).findall(archlink_Detail_data) # return list
+                self.page_nav_l = re.search('page_nav_l:(.*?)\n', archlink_Detail_data, re.S).group(1)
+                self.page_nav_r = re.search('page_nav_r:(.*?)\n', archlink_Detail_data, re.S).group(1)
+            else:
+                print("模板文件夹里面欠缺必要的文件！")
+                return False 
+            for md in self.findAllFile():                
+                parent_dir = (os.path.dirname(md) ).replace("source", "posts")  # 不换就是：source   source/gongkao_zhuanlan
+                if os.path.isdir(parent_dir):
+                    pass
+                else:
+                    os.mkdir(parent_dir)
+                self.GetmdDetail(md)
+            self.post_num = len(self.arr)
+            #排序
+            if self.post_num >=2:
+                for i in range(1, self.post_num):#这里不需要-1，因为下面已经有j = i-1，否则在列表最后一个排不到
+                    key = self.arr[i] 
+                    j = i-1 
+                    while j>=0 and key.date.replace("-", "").replace(":", "").replace(" ", "") > self.arr[j].date.replace("-", "").replace(":", "").replace(" ", ""):
+                        self.arr[j+1] = self.arr[j]
+                        j-=1
+                    self.arr[j+1] = key
+            #生成sitemap.txt文件
+            self.sitemap()
+            
+            #置顶
+            topArr = []
+            top = self.post_num-1
+            while top>=0:
+                if(self.arr[top].topping.replace(" ", "") == "Yes"):
+                    topArr.insert(0,self.arr[top])    #插入到列表topArr中
+                    del (self.arr[top])               #删除列表arr中该元素
+                top -= 1    
+            self.arr = topArr + self.arr              #两个列表合并
+            del topArr                                #删除列表topArr
+            #self.PrintArr()
+
+            self.pages = (self.post_num//(self.articleMax+1)) + 1
+            print('博客导航有%s页，每页有%s篇文章（含隐藏页），总共有%s篇文章。'%(self.pages,self.articleMax, self.post_num))
+            if(self.pages == 2):
+                self.is_only2page = True      #判断一开始就是不是只有两个页面
+            return True                    #正常运行时，返回True
+        else:
+            print("请仔细检查source、pages、template这三个文件夹是否存在！")
+            return False
+
+    def sitemap(self):
+        sitemapstring = ""
+        for i in self.arr:
+            sitemapstring = sitemapstring + "http://blog.jtjiang.top/posts/"+self.HTML_url(i.md_url) + "\n"
+        try:
+            with open("sitemap.txt", "w",encoding="utf-8") as sitemap:
+                sitemap.write(sitemapstring)
+            sitemap.close()
+        except:
+            return False
+
     def Main(self):
-        if(self.preFunc()):
-            lr = self.post_num                       
+        if(self.preFunc()): 
+            lr = self.post_num 
             if lr>=20:        
                 import threading  
                 p1 = threading.Thread( target=self.parse_main, args=( thread_str(0, lr//4),'t1') )
                 p2 = threading.Thread( target=self.parse_main, args=( thread_str(lr//4, lr//2),'t2') )
-                p3 = threading.Thread( target=self.parse_main, args=(thread_str(lr//2, 3*lr//4),'t3') ) 
-                p4 = threading.Thread( target=self.parse_main, args=(thread_str(3*lr//4, lr),'t4') )
+                p3 = threading.Thread( target=self.parse_main, args=( thread_str(lr//2, 3*lr//4),'t3') ) 
+                p4 = threading.Thread( target=self.parse_main, args=( thread_str(3*lr//4, lr),'t4') )
                 p1.start()
                 p2.start()
                 p3.start()
@@ -333,17 +356,36 @@ class md2html(object):
                 p4.join()
             elif lr > 0:
                 for j in range(lr): 
-                    self.parse_to_HTML(j, "没用线程")
+                    self.parse_to_HTML(j, "没使用线程")
             else:
                 return None
-            self.create_catalog()
-        
+            self.Create_archive()
+            
 if __name__ == '__main__':
     start = time.time()
     print('欢迎使用基于python的静态博客生成器\n现在开始生成页面了。\n')
     site_name = '月牙博客'
-    a = md2html('source/', site_name) #创建对象
+    a = md2html('source/', site_name, "http://blog.jtjiang.top") #创建对象
     a.Main()  #调用对象内的函数
     del a
     end = time.time()
     print('程序总用时：%s秒'%(end-start))    
+
+"""
+        Introduce  template 
+--------------------------------------------
+file: archive_tem.html   archive template
+---------------------------------------------
+file: post_tem.html    post template
+---------------------------------------------
+file: archlink_Detail.html :
+
+archive_post: 
+
+archive_post:
+
+page_nav_l:
+
+page_nav_r:
+
+"""
