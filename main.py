@@ -372,12 +372,18 @@ class md2html(object):
         self.arr = topArr + self.arr              #两个列表合并
         del topArr                                #删除列表topArr
         #self.PrintArr()
-
-        self.pages = (self.post_num//(self.articleMax+1)) + 1
+        
+        postsnum = 0 #能显示的有多少
+        for i in range(self.post_num):
+            if self.arr[i].is_archive == "Yes":
+                postsnum += 1
+        
+        self.pages = (postsnum//(self.articleMax+1)) + 1
         print('博客导航有%s页，每页有%s篇文章（含隐藏页），总共有%s篇文章。'%(self.pages,self.articleMax, self.post_num))
         if(self.pages == 2):
             self.is_only2page = True      #判断一开始就是不是只有两个页面
         return True                    #正常运行时，返回True
+   
     def Main(self):
         if(self.preFunc()): 
             lr = self.post_num 
@@ -400,6 +406,10 @@ class md2html(object):
                     self.parse_to_HTML(j, "没使用线程")
             else:
                 return None
+            for i in range(lr-1,-1, -1):  #倒序删除符合条件的元素
+                if self.arr[i].is_archive != "Yes":
+                    del ( self.arr[i] )
+            self.post_num = len(self.arr)
             self.Create_archive()
             
 if __name__ == '__main__':
