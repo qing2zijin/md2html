@@ -1,5 +1,3 @@
-![1](sheet.PNG)
-
 # staticblog
 基于markdown和python的静态博客（网站）生成器
 
