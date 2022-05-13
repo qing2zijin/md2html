@@ -378,7 +378,9 @@ class md2html(object):
             if self.arr[i].is_archive == "Yes":
                 postsnum += 1
         
-        self.pages = (postsnum//(self.articleMax+1)) + 1
+        self.pages = int(postsnum/(self.articleMax+1))
+        if (self.pages * self.articleMax ) < postsnum:
+            self.pages +=1
         print('博客导航有%s页，每页有%s篇文章（含隐藏页），总共有%s篇文章。'%(self.pages,self.articleMax, self.post_num))
         if(self.pages == 2):
             self.is_only2page = True      #判断一开始就是不是只有两个页面
