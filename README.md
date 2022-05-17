@@ -15,7 +15,7 @@
 
 ## 所需用到的库
 
-1. `markdown` `pip install markdown`
+1. `markdown` `pip install markdown -i https://pypi.douban.com/simple`
 2. `os`
 3. `re`
 4. `threading`
@@ -35,9 +35,13 @@ keywords:
 description:
 priv: write Yes or No
 top: write Yes or No
+is_archive:Yes 是否加入archive页面默认是Yes
+use_markdownmodule:Yes
 ---
+
  write content here
+ 
 ```
-post-contents
+
 
 保存为`.md`格式
