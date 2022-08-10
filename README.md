@@ -7,9 +7,11 @@
 ## 所需的文件及文件夹
 `main.py`：程序
 
+`_public` : 文件发布集中存放点
+
 `source` ：将需要的markdown文件存放于此处
 
-`posts` ：程序自动将转换好的html文件存放于此处
+`_public/posts` ：程序自动将转换好的html文件存放于此处
 
 `template`：网页模板，目前有导航页和文章页模板
 
@@ -23,6 +25,8 @@
 
 ## 使用方法
 命令：`python main.py`
+windows: bat python main.py
+linux: sh python main.py
 
 ## 文章样式&文件格式
 所有文章样式是：
