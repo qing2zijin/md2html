@@ -44,29 +44,30 @@ class md2html(object):
         self.site_name = site_name
         self.site_url = site_UL
         self.arr = list()
-        if max_article == None:
-            pass
-        else:
-            self.articleMax = max_article
+        if max_article is not None:   #https://blog.csdn.net/u012995500/article/details/82764128
+            md2html.articleMax = max_article  #https://blog.csdn.net/chenhanxuan1999/article/details/88080699
 
     def __del__(self):
-        print("Good bye !")
+        print("程序结束, Good bye !")
 
+    # def print_test(self):
+        # print(self.articleMax) #20
+        # print(md2html.articleMax) #20    48行改成md2html.就是20，改成self.就是40
+        
     def findAllFile(self):
         for root, ds, fs in os.walk(self.base):
             for f in fs:
                 md_l = os.path.join(root, f)
-              
                 parent_dir = os.path.dirname(md_l).replace(self.base, "posts")  # 不换就是：source   source/gongkao_zhuanlan
                 if parent_dir == "posts":
                     pass
-                elif os.path.isdir(parent_dir):
+                elif os.path.isdir("_public/{}".format(parent_dir)):
                     pass
                 else:
-                    os.mkdir(parent_dir)
+                    os.mkdir("_public/{}".format(parent_dir))
                 self.md_rawlist.append( md_l )
 
-    def GetmdDetail(self, addrid):    
+    def GetmdDetail(self, addrid):   #根据原始文件地址读取文件，得出需要的细节信息 
         md_addr = self.md_rawlist[addrid]
         if md_addr is not None: #传递的不是空地址
             try:
@@ -107,7 +108,7 @@ class md2html(object):
                     else:
                         needthing[m] = self.tagg[m] 
 
-            print(needthing[0] + needthing[6])
+            # print(needthing[0] + needthing[6])
             if(needthing[3] == "No"):
                 '''           
                 这里有点多此一举，不过这个程序以前的版本：元素最开始不是存储在列表needthing里面的。
@@ -129,7 +130,8 @@ class md2html(object):
 
     def HTML_url(self, md_addr, parse_to_html=None):
         if parse_to_html == True:
-            return  md_addr.replace(self.base, "/posts").replace("\\", "/").replace(".md", ".html") 
+            a = '{}\\'.format(self.base)
+            return  md_addr.replace(a, "/posts/").replace("\\", "/").replace(".md", ".html") 
         else:
             return  md_addr.replace(self.base, "posts").replace("\\", "/").replace(".md", ".html")
 
@@ -150,7 +152,7 @@ class md2html(object):
         with open(self.arr[listNumber].md_url, 'r', encoding='utf-8') as raw_File:
             raw_Data = raw_File.read()        
 
-        out_path = self.HTML_url(self.arr[listNumber].md_url)  #输出地址及HTML文件名称结构
+        out_path = self.HTML_url('_public/{}'.format(self.arr[listNumber].md_url) )  #输出地址及HTML文件名称结构
         if self.arr[listNumber].use_markdownmodule == "Yes":
              # 'markdown.extensions.toc',\
             html_content = markdown.markdown(raw_Data,extensions=[
@@ -191,7 +193,7 @@ class md2html(object):
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)               
                     s1 =  s1+a
-            posts_url = "index.html"
+            posts_url = "_public/index.html"
             with open(posts_url,'w',encoding='utf-8') as only_onepg:
                 only_onepg.write(self.template_acrchive.replace('{{page_nav}}',s1)\
                 .replace('{{title}}',self.site_name)\
@@ -209,7 +211,7 @@ class md2html(object):
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
                     s1 =  s1+a
-            posts_url = "index.html"
+            posts_url = "_public/index.html"
             with open(posts_url,'w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -228,7 +230,7 @@ class md2html(object):
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
                     s1 =  s1+a
-            posts_url = "pages/" + str(self.pages)+".html"
+            posts_url = "_public/pages/" + str(self.pages)+".html"
             with open(posts_url,'w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -247,7 +249,7 @@ class md2html(object):
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
                     s1 =  s1+a
-            posts_url = "pages/" + str(self.pages)+".html"
+            posts_url = "_public/pages/" + str(self.pages)+".html"
             with open(posts_url,'w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -266,7 +268,7 @@ class md2html(object):
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
                     s1 =  s1+a
-            posts_url = "pages/" + str(self.pages)+".html"
+            posts_url = "_public/pages/" + str(self.pages)+".html"
             with open(posts_url,'w',encoding='utf-8') as pg:
                 pg.write(self.template_acrchive\
                 .replace('{{page_nav}}',s1)\
@@ -305,15 +307,15 @@ class md2html(object):
             for i in self.arr:
                 sitemapstring = sitemapstring + self.site_url +"/"+self.HTML_url(i.md_url) + "\n"
             try:
-                with open("sitemap.txt", "w",encoding="utf-8") as sitemap:
+                with open("_public/sitemap.txt", "w",encoding="utf-8") as sitemap:
                     sitemap.write(sitemapstring)
                 sitemap.close()
             except:
                 return False
         else:
             try:
-                with open("sitemap.txt", "a",encoding="utf-8") as sitemap:
-                    sitemap.write(self.site_url + "/"+URL + "\n")
+                with open("_public/sitemap.txt", "a",encoding="utf-8") as sitemap:
+                    sitemap.write(self.site_url + "/"+URL.replace("_public/","") + "\n")
                 sitemap.close()
             except:
                 return False
@@ -342,26 +344,26 @@ class md2html(object):
         print("四个结点已创建")        
 
     def Main(self):  
-        '''预先判定这几个文件夹是否存在： source  pages   template   posts'''            
+        '''预先判定这几个文件夹是否存在： source  _public/pages   template   _public/posts'''            
         if os.path.isdir(self.base):
             pass
         else:
             os.mkdir(self.base)
             print(self.base + "文件夹不存在，已帮忙创建！")
-        if os.path.isdir("pages"):
+        if os.path.isdir("_public/pages"):
             pass
         else:
-            os.mkdir("pages")
+            os.mkdir("_public/pages")
             print("pages文件夹不存在，已帮忙创建！")
         if os.path.isdir("template"):
             pass
         else:
             os.mkdir("template")
             print("template文件夹不存在，已帮忙创建！")
-        if os.path.isdir("posts"):
+        if os.path.isdir("_public/posts"):
             pass
         else:
-            os.mkdir("posts")
+            os.mkdir("_public/posts")
             print("posts文件夹不存在，已帮忙创建！")
         
         if os.path.isfile('template/post_tem.html') and os.path.isfile('template/archive_tem.html') and os.path.isfile('template/subtle_set.html'):
@@ -479,8 +481,9 @@ if __name__ == '__main__':
     start = time.time()
     print('欢迎使用基于python的静态博客生成器，\n项目地址：https://github.com/qing2zijin/staticblog \n现在开始生成页面了。\n')
     site_name = '月牙博客'
-    a = md2html("source", site_name, "http://blog.jtjiang.top", 40) #创建对象
+    a = md2html("source", site_name, "http://blog.jtjiang.top", 20) #创建对象
     a.Main()  #调用对象内的函数
+    # a.print_test()
     del a
     end = time.time()
     print('程序总用时：%s秒'%(end-start))    
