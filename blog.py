@@ -5,7 +5,7 @@
 *编排导航页面也使用排序后的列表
 """
 
-import os, re, threading, markdown
+import os, re, threading, markdown, time
 
 """判断文件夹存在并创建"""
 def isDIR(DIR):
@@ -152,15 +152,34 @@ class md2html(object):
         prev_article = None  # 时间距离最远的文章为 上一篇 列表序号最大处方向
         next_article = None  # 时间距离最近的文章为 下一篇 列表序号为0处方向
         
-        if(0 == listNumber):
-            next_article = "下一篇：没有了"
+        """通过标签is_archive判断是否应当编排页内的上下页导航，通过下面的操作以其达到半隐藏的目的代码行数156~182"""
+        if "No" == self.arr[listNumber].is_archive:
+            prev_article = ""
+            next_article = ""
         else:
-            next_article = '下一篇：<a href="'+self.HTML_url(self.arr[listNumber-1].md_url, True)+'">'+self.arr[listNumber-1].title+'</a>' #<a href="{{next_article}}">下一篇</a>
-        
-        if(self.post_num-1 == listNumber):
-            prev_article = "上一篇：没有了"
-        else:
-            prev_article = '上一篇：<a href="'+self.HTML_url(self.arr[listNumber+1].md_url, True)+'">'+self.arr[listNumber+1].title+'</a>' #<a href="{{prev_article}}">上一篇</a>
+            if(0 == listNumber):
+                next_article = "下一篇：没有了"
+            else:
+                n = listNumber-1
+                while ( ("No" == self.arr[n].is_archive) and ( n > 0) ): 
+                    n -= 1
+                if -1 == n:
+                    next_article = "下一篇：没有了"
+                else:
+                    """<a href="{{next_article}}">下一篇</a>"""
+                    next_article = '下一篇：<a href="'+self.HTML_url(self.arr[n].md_url, True)+'">'+self.arr[n].title+'</a>' 
+                
+            if(self.post_num-1 == listNumber):
+                prev_article = "上一篇：没有了"
+            else:
+                m = listNumber +1
+                while ( ("No"==self.arr[m].is_archive) and ( m < (self.post_num-1) ) ):
+                    m += 1
+                if self.post_num == m:
+                    prev_article = "上一篇：没有了"
+                else:
+                    """<a href="{{prev_article}}">上一篇</a>"""
+                    prev_article = '上一篇：<a href="'+self.HTML_url(self.arr[m].md_url, True)+'">'+self.arr[m].title+'</a>' 
         
         with open(self.arr[listNumber].md_url, 'r', encoding='utf-8') as raw_File:
             raw_Data = raw_File.read()        
@@ -470,7 +489,8 @@ class md2html(object):
         return True        
             
 if __name__ == "__main__":
-    
+    start = time.time()
+    """-------------------------------------------------------------------------------"""
     source = "source"    #文章源
  
     output_ALL = "_public"  #输出地址总文件夹
@@ -493,4 +513,5 @@ if __name__ == "__main__":
     a = md2html(source, site_name, site_url, page_MaxNum, output_ALL, output_DETAIL, output_PAGE)
     a.Main()
     del a
-    
+    """------------------------------------------------------------------------------------"""
+    print("程序总用时%s"(time.time()-start))
