@@ -5,7 +5,7 @@
 版权归@qing2zijin所有，请勿擅自商业化。
 
 ## 所需的文件及文件夹
-`main.py`：程序
+`blog.py`：程序
 
 `_public` : 文件发布集中存放点
 
@@ -24,9 +24,8 @@
 5. `time`
 
 ## 使用方法
-命令：`python main.py`
-windows: bat python main.py
-linux: sh python main.py
+命令：`python blog.py`
+
 
 ## 文章样式&文件格式
 所有文章样式是：
@@ -39,7 +38,7 @@ keywords:
 description:
 priv: write Yes or No
 top: write Yes or No
-is_archive:Yes 是否加入archive页面默认是Yes
+is_archive:Yes 
 use_markdownmodule:Yes
 ---
 
