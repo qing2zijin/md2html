@@ -1,51 +1,61 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1,minimum-scale=1,maximum-scale=1">
-<meta name="keywords" content="{{keywords}}"> <!-- 关键词 -->
-<meta name="description" content="{{description}}"> <!-- 内容摘要 -->
-<link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
-<link rel="icon" href="/favicon.ico">
-<link rel="stylesheet" type="text/css" href="/style.css">
-<title>{{title}}</title></head><body>
-<div id='page'>
-  <header id='masthead'>
-    <div class='site-header-inner'>
-      <h1 class='site-title'> <a href='/' class='logo'>{{site-name}}</a> </h1>
-      <nav id="nav-top">
-        <ul id="menu-top" class="nav-top-items">
-          {{menu}}
-        </ul>
-      </nav>
-    </div>
-  </header>
-  <div id="content">
-    <div id="primary">
-      <article class="post">
-        <header class="post-header">
-          <h1 class="post-title">{{title}}</h1>
-          <time class="post-time">{{date}}</time>
-        </header>
-        <div class="post-content"> {{post-content}} </div>
-        <footer class="post-footer">
-          <div class="post-tags"> <span>{{tags}}</span> </div>
-          <nav class="post-nav">
-		    <p>
-            <span style="float:left">{{prev_article}}</span> 
-			<span style="float:right">{{next_article}}</span>
-            <!-- 上下文导航按钮  -->
-			</p>
-          </nav>
-        </footer>
-        <div class="comments" id="comments">
-<!--          comments
- -->        </div>
-      </article>
-    </div>
-  </div>
-  <!--尾部-->
-  <footer id="colophon"> <span class="copyright-year">&copy;2016-2023 <span class="footer-author">{{site-name}}</span>
-    <!--  <span class="power-by">Powered by Python</span>  -->
-    </span> </footer>
-</div>
-</body>
+<!DOCTYPE html>
+<html lang="zh-Hans">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1,minimum-scale=1,maximum-scale=1">
+		<meta name="keywords" content="{{keywords}}"> <!-- 关键词 -->
+		<meta name="description" content="{{description}}"> <!-- 内容摘要 -->
+		<link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+		<link rel="icon" href="/extra/favicon.ico">
+		<link rel="stylesheet" type="text/css" href="/extra/css/style.css">
+		<title>{{title}}</title>
+	</head>
+	<body>
+		<header id='masthead'>
+		<div class='site-header-inner'>
+		  <h1 class='site-title'> <a href='/' class='logo'>{{site-name}}</a> </h1>
+		  <nav id="nav-top">
+			<ul id="menu-top" class="nav-top-items">
+			   {{menu}}
+			</ul>
+		  </nav>
+		</div>
+		</header>
+
+		<div id="content"><!-- 内容 -->
+			<div id="primary">
+				<article class="post">
+					<header class="post-header">
+					  <h1 class="post-title">{{title}}</h1>
+					  <time class="post-time">{{date}}</time>
+					</header>
+					<div class="post-content"> 
+						{{post-content}} 
+					</div>
+					<footer class="post-footer">
+						<div class="post-tags"> <span>{{tags}}</span> </div>
+						<nav class="post-nav"><!-- 上下文导航按钮  -->
+							<p><span style="float:left">{{prev_article}}</span><span style="float:right">{{next_article}}</span></p>
+						</nav>
+					</footer>
+					<div class="comments" id="comments"><!--评论区-->
+						 
+						 
+					</div>
+				</article>
+			</div>
+		</div>
+		
+		<footer id="colophon"> <!--尾部-->
+			<span class="copyright-year">
+				&copy;2016-2023 <span class="footer-author">{{site-name}}</span>
+			<!--  <span class="power-by">Powered by Python</span>  --> 
+			</span>
+			<span style="display:none">
+				<a href="/sitemap.txt">站点地图</a>
+			</span> 
+		</footer>
+
+		
+	</body>
 </html>
