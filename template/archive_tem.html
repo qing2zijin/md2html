@@ -7,6 +7,8 @@
 		<link rel="icon" href="/extra/favicon.ico">
 		<link rel="stylesheet" type="text/css" href="/extra/css/style.css">
 		<title>{{title}}</title>
+		 <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+	</head>
 	</head>
 	<body>
 		<header id='masthead'>
@@ -14,10 +16,15 @@
 			<h1 class='site-title'> <a href='/' class='logo'>{{site-name}}</a> </h1>
 			<nav id="nav-top">
 				<ul id="menu-top" class="nav-top-items">
-				{{menu}}
+				<!-- {{menu}} -->
 				</ul>
 			</nav>
 			</div>
+			<script>
+				$(function(){
+				      $("#menu-top").load("/extra/menu.html");
+			        });
+		       </script>
 		</header>
 		<div id="content">
 			<div id="primary">
