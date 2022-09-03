@@ -51,10 +51,8 @@ class md2html(object):
     archlink_Detail = None               #archive页文章链接处细节模板
     page_nav_l = None                    #各个pages里面prev next按钮
     page_nav_r = None    
-    menu = None                          #菜单设置
-    pattern = ["title:(.*?)\n", "date:(.*?)\n", "tags:(.*?)\n", "priv:(.*?)\n", "top:(.*?)\n", \
-              "is_archive:(.*?)\n", "use_markdownmodule:(.*?)\n", "keywords:(.*?)\n", "description:(.*?)\n" ] 
-    tagg = [ "无标题", "1997-01-01 19:12:00", "life", "No", "No", "Yes", "Yes", "", "" ]
+    #menu = None                          #菜单设置
+    
     md_rawlist = list()                      #原始Md文件地址存储    
     thread_str1 = None
     thread_str2 = None
@@ -83,7 +81,7 @@ class md2html(object):
                 """source\gongkao_zhaunlan => _public\posts\gongkao_zhuanlan"""
                 parent_dir = os.path.dirname(md_l).replace( self.base, "{}\{}".format(self.dir_public, self.dir_posts) )
                 isDIR( parent_dir )
-                self.md_rawlist.append(md_l)
+                md2html.md_rawlist.append(md_l)
     
     """根据原始文件地址读取文件，得出需要的细节信息"""
     def GetmdDetail(self, addrid):    
@@ -95,47 +93,92 @@ class md2html(object):
             except:
                 print("文件地址不对！")
                 return None
-            """              说明：采取的是列表之间对比，列表needthing作为匹配结果，列表tagg作为设置的原始值，"""
+            title = None
+            date = None
+            tags = None
+            private = None
+            top = None
+            is_archive = None
+            use_markdownmodule = None
+            keywords = None
+            description = None
             
-            needthing = list() #title 0, date 1, tags 2, private 3, topping 4, is_archive 5, use_markdownmodule 6, keywords 7, description 8
+            DATA = raw_Data[:400]
+            title_p = re.search("title:(.*?)\n", DATA)
+            date_p = re.search("date:(.*?)\n", DATA)
+            tags_p = re.search("tags:(.*?)\n", DATA)
+            private_p = re.search("priv:(.*?)\n", DATA)
+            top_p = re.search("top:(.*?)\n", DATA)
+            is_archive_p = re.search("is_archive:(.*?)\n", DATA)
+            use_markdownmodule_p = re.search("use_markdownmodule:(.*?)\n", DATA)
+            keywords_p = re.search("keywords:(.*?)\n", DATA)
+            description_p = re.search("description:(.*?)\n", DATA)
             
-            length = len(self.pattern)
-            
-            for k in range(length):
-                # needthi = re.compile(self.pattern[k]).findall(raw_Data[0:400])  #返回列表
-                # if len(needthi) == 0:
-                    # needthing.append(self.tagg[k])
-                # else:
-                    # needthing.append(needthi[0])
-            # if needthing[7].replace(" ", "") == "":
-                # needthing[7] = needthing[0] + "," + self.site_name
-            # if needthing[8].replace(" ", "") == "":
-                # needthing[8] = needthing[0]
-            
-                matchaddr = re.search(self.pattern[k], raw_Data[:400])  #循环匹配
-                if matchaddr is not None:           #排查：如果md文件里面没有设置参数
-                    needthing.append(matchaddr.group(1))                    
-                else:
-                    needthing.append(self.tagg[k])
-            for m in range(length):
-                if needthing[m].replace(" ", "") == "":       #排查：如果md文件里面设置了参数但是没值
-                    if m == 7:
-                        needthing[m] = needthing[0] + "," + self.site_name   #keywords
-                    elif m == 8:
-                        needthing[m] = needthing[0]             #description
-                    else:
-                        needthing[m] = self.tagg[m] 
-
-            # print(needthing[0] + needthing[6])
-            if(needthing[3] == "No"):
-                """这里有点多此一举，不过这个程序以前的版本：元素最开始不是存储在列表needthing里面的。
-                而现在为了节省代码量就使用了列表needthing，其实是可以直接插入列表的，形成二维列表，不过后面的形式要更改，
-                偷懒就这样了。"""
-         
-                self.arr.append(Node(needthing[0], needthing[1], needthing[2], md_addr, needthing[4], needthing[5], needthing[6], needthing[7], needthing[8]))
+            """title"""
+            if title_p != None: #设置了该属性
+                title = title_p.group(1).replace(" ", "")
             else:
-                print("文章：《%s》保密%s，不生成HTML，地址为：%s\n"%(needthing[0], needthing[3], md_addr) ) 
-            del needthing
+                title = "无标题"
+            if title == "":
+                title = "无标题"
+            """date"""
+            if date_p != None:
+                date = date_p.group(1)
+            else:
+                date = "1997-01-01 19:12:00"
+            if date == "":
+                date = "1997-01-01 19:12:00"
+            """tags"""
+            if tags_p != None:
+                tags = tags_p.group(1).replace(" ", "")
+            else:
+                tags = "life"
+            if tags == "":
+                tags = "life"
+            """private"""
+            if private_p != None:
+                private = private_p.group(1).replace(" ", "")
+            else:
+                private = "No"
+            if private == "":
+                private = "No"
+            """top"""
+            if top_p != None:
+                top = top_p.group(1).replace(" ", "")
+            else:
+                top = "No"
+            if top == "":
+                top = "No"
+            """is_archive"""
+            if is_archive_p != None:
+                is_archive = is_archive_p.group(1).replace(" ", "")
+            else:
+                is_archive = "Yes"
+            if is_archive == "":
+                is_archive = "Yes"
+            """use_markdownmodule"""
+            if use_markdownmodule_p != None:
+                use_markdownmodule = use_markdownmodule_p.group(1)
+            else:
+                use_markdownmodule = "Yes"
+            if use_markdownmodule == "":
+                use_markdownmodule = "Yes"
+            """keywords"""
+            if keywords_p != None:
+                keywords = keywords_p.group(1).replace(" ", "")
+            else:
+                keywords = ""
+            """description"""
+            if description_p != None:
+                description = description_p.group(1).replace(" ", "")
+            else:
+                description = ""
+         
+            if( private != "Yes"):
+                self.arr.append(Node( title, date, tags, md_addr, top, is_archive, use_markdownmodule, keywords, description ))
+            else:
+                print("文章：《%s》保密%s，不生成HTML，地址为：%s\n"%(title, private, md_addr) ) 
+            
             return True
         else:
             return False
@@ -197,8 +240,8 @@ class md2html(object):
             .replace('{{prev_article}}',prev_article)\
             .replace('{{next_article}}',next_article)\
             .replace('{{keywords}}', self.arr[listNumber].keywords)\
-            .replace('{{description}}',self.arr[listNumber].description)\
-            .replace("{{menu}}", self.menu)
+            .replace('{{description}}',self.arr[listNumber].description)
+            #.replace("{{menu}}", self.menu)
         
         with open(out_path, 'w', encoding='utf-8', errors='xmlcharrefreplace') as out_File:
             out_File.write(post_html_content)
@@ -227,7 +270,7 @@ class md2html(object):
                 .replace('{{title}}',self.site_name)\
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}','') \
-                .replace("{{menu}}", self.menu) \
+                #.replace("{{menu}}", self.menu) \
                 )                 
             self.sitemap(posts_url)
         elif(self.pages == 1): #第一页没有pre b
@@ -246,7 +289,7 @@ class md2html(object):
                 .replace('{{title}}',self.site_name)\
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}',page_nav_r.replace('{{right-link}}','{}/'.format(self.dir_pages) + str(self.pages+1)+'.html'))\
-                .replace("{{menu}}", self.menu) \
+                #.replace("{{menu}}", self.menu) \
                 )
             self.sitemap(posts_url)
         elif(self.pages == 2 and (self.is_only2page == False) ): #由递归衰减而到的第2页 c
@@ -265,7 +308,7 @@ class md2html(object):
                 .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}', page_nav_l.replace('{{left-link}}','../index.html')+page_nav_r.replace('{{right-link}}',str(self.pages+1)+'.html'))\
-                .replace("{{menu}}", self.menu) \
+                #.replace("{{menu}}", self.menu) \
                 )
             self.sitemap(posts_url)    
         elif(self.is_only2page): #如果一开始就是只有2页便执行如下代码 d
@@ -284,7 +327,7 @@ class md2html(object):
                 .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}', page_nav_l.replace('{{left-link}}','../index.html'))\
-                .replace("{{menu}}", self.menu) \
+                #.replace("{{menu}}", self.menu) \
                 )
             self.sitemap(posts_url)
         elif(self.pages*self.articleMax >= self.post_num and ((self.pages-1)*self.articleMax <= self.post_num ) ): #最后一页 e
@@ -303,7 +346,7 @@ class md2html(object):
                 .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}', page_nav_l.replace('{{left-link}}',str(self.pages-1)+'.html'))\
-                .replace("{{menu}}", self.menu) \
+                #.replace("{{menu}}", self.menu) \
                 )
             self.sitemap(posts_url) 
         else:  #一般页面 f
@@ -323,7 +366,7 @@ class md2html(object):
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}', page_nav_l.replace('{{left-link}}',str(self.pages-1)+'.html')+page_nav_r.replace('{{right-link}}',\
                 str(self.pages+1)+'.html'))\
-                .replace("{{menu}}", self.menu) \
+                #.replace("{{menu}}", self.menu) \
                 )
             self.sitemap(posts_url)
         self.pages -=1
@@ -375,6 +418,18 @@ class md2html(object):
         self.thread_str4 = thread_str(3*length//4, length)
         print("四个结点已创建") 
     
+    """最近文章"""
+    def Recent_posts(self):
+        out_file = "{}/{}/recent_posts.html".format(self.dir_public, self.dir_extra)  #_public/extra/recent_posts.html
+        s = "<p>recent posts: </p>\n<ul>\n"
+        for k in range(8):
+            s1 = '<li><a href="/{}" target="_blank">{}</a></li>\n'.format(self.HTML_url( self.arr[k].md_url ) , self.arr[k].title)
+            s += s1
+        s += "</ul>\n"
+        with open(out_file, "w", encoding="utf-8") as renc:
+            renc.write(s)
+        renc.close()
+    
     """"主函数 调度用"""
     def Main(self):
         isDIR("template")
@@ -388,7 +443,8 @@ class md2html(object):
             self.archlink_Detail = re.compile("archive_post:(.*?)\n", re.S).findall(archlink_Detail_data)   
             self.page_nav_l = re.search('page_nav_l:(.*?)\n', archlink_Detail_data, re.S).group(1)
             self.page_nav_r = re.search('page_nav_r:(.*?)\n', archlink_Detail_data, re.S).group(1)
-            self.menu = re.search("menu:(.*?)\n", archlink_Detail_data, re.S).group(1)
+            """2022.9.3更新：使用jQuery load形式加载导航，舍弃之前做法。"""
+            #self.menu = re.search("menu:(.*?)\n", archlink_Detail_data, re.S).group(1)
         else:
             print("模板文件夹里面欠缺必要的文件！\n 请参考：https://github.com/qing2zijin/staticblog 进行搭建")
             return False
@@ -433,8 +489,9 @@ class md2html(object):
                 self.arr[j+1] = key
         #self.PrintArr()
         self.sitemap() #生成sitemap.txt文件
+        self.Recent_posts()
         
-        #置顶
+        """置顶"""
         topArr = []
         top = self.post_num - 1
         while top>=0:
