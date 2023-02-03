@@ -9,7 +9,7 @@
 
 `_public` : 文件发布集中存放点
 
-`source` ：将需要的markdown文件存放于此处
+`raw` ：将需要的markdown文件存放于此处
 
 `_public/posts` ：程序自动将转换好的html文件存放于此处
 
