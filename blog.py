@@ -1,36 +1,57 @@
 """
+*****blog.by
 *设计说明
 *使用列表存储md文件细节信息
 *排序等操作整理列表
 *编排导航页面也使用排序后的列表
+********************************************使用多线程！************************************
 """
 
-import os, re, threading, markdown, time
+"""
+2023.2.1程序更新，换模板
+1.post_tem.html => post.html     [模板文件]
+2.archive_tem.html => page.html  [模板文件]
+    原首页移到pages目录下。对Create_archive()函数进行了较大幅度修改
+    对temp_first 和 temp 值进行了统一，原来首页成了pages目录下面的一个子文件，链接路径也就进行了修改。
+3.subtle_set.html未改变。
+4.删除了atom.xml文件生成程序，不太使用。
+"""
+
+
+import os, re, markdown, time, threading
 
 """判断文件夹存在并创建"""
 def isDIR(DIR):
     if ( False == os.path.isdir(DIR) ):
         os.mkdir(DIR)
         
-"""判断文件存在并创建"""
+"""判断文件存在"""
 def isFILE(FILE):
     if os.path.isfile(FILE):
         return True
     else:
         return False
 
+def File_io(_file, Mode, code, DATA=None):
+    with open(_file, Mode, encoding=code) as file:
+        if Mode == "r":
+            return file.read()  #read  就返回数据
+        else:
+            file.write(DATA)    #write 操作
+    file.close()
+
+"""存储区段信息的结点   其实吧，也可以使用元组来替代tup(a, b)"""
 class thread_str(object):
     def __init__(self,first, last):
         self.first = first
         self.last = last
-        # print("该段区间为[%s , %s)" %(self.first, self.last))
 
 """用于存放数据的结点，搭配列表使用"""
-class Node:  
-    def __init__(self, title=None, date=None, tags=None, md_url=None,topping=None, is_archive=None,use_markdownmodule=None,kwds=None, descri=None):
+class Node(object):  
+    def __init__(self, title=None, date=None, category=None, md_url=None,topping=None, is_archive=None,use_markdownmodule=None,kwds=None, descri=None):
         self.title = title                             #标题
         self.date = date                               #创建时间
-        self.tags = tags                               #标签
+        self.category = category                       #类别
         self.md_url = md_url                           #makdown文章地址
         self.topping = topping                         #置顶
         self.is_archive = is_archive                   #archive页收录
@@ -42,60 +63,56 @@ class md2html(object):
     dir_public = None
     dir_posts = None
     dir_pages = None
+    dir_extra = None
     pages = 0                            #页数
-    articleMax = 40                      #设置每页文章数，默认值40
+    articleMax = 30                      #设置每页文章数，默认值30
     post_num = 0                         #文章数量
-    is_only2page = False                 #总共只有2页判断
+    is_only2page = False                 #一开始只有两页的判断
     template_post = None                 #文章模板
     template_acrchive = None             #archive页模板                 
     archlink_Detail = None               #archive页文章链接处细节模板
     page_nav_l = None                    #各个pages里面prev next按钮
     page_nav_r = None    
-    #menu = None                          #菜单设置
-    
-    md_rawlist = list()                      #原始Md文件地址存储    
-    thread_str1 = None
-    thread_str2 = None
-    thread_str3 = None
-    thread_str4 = None
-    
-    def __init__(self, base, site_name, site_UL, max_article=None, output_ALL=None, output_DETAIL=None, output_PAGE=None):
+    #menu = None                         #菜单设置
+    md_rawlist = list()                  #原始Md文件地址存储    
+    thread_srtarr = list()               #线程存储列表
+     
+    def __init__(self, base, site_name, site_UL, max_article=None, output_ALL=None, output_DETAIL=None, output_PAGE=None, output_RECENTPOSTS=None):
         md2html.dir_public = output_ALL
         md2html.dir_posts = output_DETAIL
         md2html.dir_pages = output_PAGE
-        
+        md2html.dir_extra = output_RECENTPOSTS
         self.base = base
         self.site_name = site_name
         self.site_url = site_UL
-        self.arr = list()
+        self.arr = list()          #列表，按照读取文件顺序存储文档信息，建立一种索引关系。
         if max_article != None:
             md2html.articleMax = max_article
     
     def __del__(self):
         print("程序结束, Good bye !")
 
+    """遍历source源文件，寻址，插入列表中"""
     def findALLFile(self):
         for root, ds, fs in os.walk(self.base):
             for f in fs:
                 md_l = os.path.join(root, f) 
-                """source\gongkao_zhaunlan => _public\posts\gongkao_zhuanlan"""
-                parent_dir = os.path.dirname(md_l).replace( self.base, "{}\{}".format(self.dir_public, self.dir_posts) )
+                parent_dir = os.path.dirname(md_l).replace(self.base, "{}/{}".format(self.dir_public, self.dir_posts) )
                 isDIR( parent_dir )
                 md2html.md_rawlist.append(md_l)
-    
+               
     """根据原始文件地址读取文件，得出需要的细节信息"""
     def GetmdDetail(self, addrid):    
         md_addr = self.md_rawlist[addrid]
         if md_addr != None: #传递的不是空地址
             try:
-                with open(md_addr, 'r', encoding='utf-8') as raw_File:
-                    raw_Data = raw_File.read()
+                raw_Data = File_io(md_addr, "r", "utf-8")
             except:
                 print("文件地址不对！")
                 return None
             title = None
             date = None
-            tags = None
+            category = None
             private = None
             top = None
             is_archive = None
@@ -106,7 +123,7 @@ class md2html(object):
             DATA = raw_Data[:400]
             title_p = re.search("title:(.*?)\n", DATA)
             date_p = re.search("date:(.*?)\n", DATA)
-            tags_p = re.search("tags:(.*?)\n", DATA)
+            category_p = re.search("category:(.*?)\n", DATA)
             private_p = re.search("priv:(.*?)\n", DATA)
             top_p = re.search("top:(.*?)\n", DATA)
             is_archive_p = re.search("is_archive:(.*?)\n", DATA)
@@ -128,13 +145,13 @@ class md2html(object):
                 date = "1997-01-01 19:12:00"
             if date == "":
                 date = "1997-01-01 19:12:00"
-            """tags"""
-            if tags_p != None:
-                tags = tags_p.group(1).replace(" ", "")
+            """category"""
+            if category_p != None:
+                category = category_p.group(1).replace(" ", "")
             else:
-                tags = "life"
-            if tags == "":
-                tags = "life"
+                category = "life"
+            if category == "":
+                category = "life"
             """private"""
             if private_p != None:
                 private = private_p.group(1).replace(" ", "")
@@ -167,35 +184,54 @@ class md2html(object):
             if keywords_p != None:
                 keywords = keywords_p.group(1).replace(" ", "")
             else:
-                keywords = ""
+                keywords = "{},{},{}".format(title, self.site_name,category)
+            if keywords == "":
+                keywords = "{},{},{}".format(title, self.site_name,category)
             """description"""
             if description_p != None:
                 description = description_p.group(1).replace(" ", "")
             else:
-                description = ""
-         
+                description = "{}:{}".format(self.site_name, title)
+            if description == "":
+                description = "{}:{}".format(self.site_name, title)
+            
+            
             if( private != "Yes"):
-                self.arr.append(Node( title, date, tags, md_addr, top, is_archive, use_markdownmodule, keywords, description ))
+                self.arr.append(Node( title, date, category, md_addr, top, is_archive, use_markdownmodule, keywords, description ))
             else:
                 print("文章：《%s》保密%s，不生成HTML，地址为：%s\n"%(title, private, md_addr) ) 
             
             return True
         else:
             return False
-    
+            
+    """通过md文件地址得到html文件地址"""
     def HTML_url(self, md_addr, parse_to_HTML=None):
         if parse_to_HTML == True:
-            a = "{}\\".format(self.base)
-            return md_addr.replace(a, "/{}/".format(self.dir_posts) ).replace(".md", ".html")
+            a = "{}/".format(self.base) #source\   #linux系统为"/"  windows系统为"\"
+            return md_addr.replace(a, "/{}/".format(self.dir_posts) ).replace(".md", ".html") # source\...md => /posts/...html
         else:
-            return md_addr.replace(self.base, self.dir_posts).replace("\\", "/").replace(".md", ".html")
+            return md_addr.replace(self.base, self.dir_posts).replace("\\", "/").replace(".md", ".html") # source/...md => posts/...html
     
     """转为HTML"""
     def parse_to_HTML(self, listNumber, str):
+        out_path = self.HTML_url('{}/{}'.format(self.dir_public, self.arr[listNumber].md_url) )  #输出地址及HTML文件名称结构
+                
+        """判断需要的网页是否存在，存在就不输出，并且要排除前3篇文章。"""
+        if os.path.isfile( out_path ) and listNumber >=3:
+            return None
+            
+        raw_Data = File_io(self.arr[listNumber].md_url, "r", "utf-8")            
+ 
+        if self.arr[listNumber].use_markdownmodule == "Yes":
+            html_content = markdown.markdown( raw_Data, extensions=["markdown.extensions.toc", "markdown.extensions.tables", "markdown.extensions.fenced_code",  "markdown.extensions.meta"] )
+        else:
+            html_content = raw_Data
+               
         prev_article = None  # 时间距离最远的文章为 上一篇 列表序号最大处方向
         next_article = None  # 时间距离最近的文章为 下一篇 列表序号为0处方向
         
-        """通过标签is_archive判断是否应当编排页内的上下页导航，通过下面的操作以其达到半隐藏的目的代码行数156~182"""
+        """通过标签is_archive判断是否应当编排页内的上下页导航，通过下面的操作以其达到半隐藏的目的"""
         if "No" == self.arr[listNumber].is_archive:
             prev_article = ""
             next_article = ""
@@ -224,34 +260,25 @@ class md2html(object):
                     """<a href="{{prev_article}}">上一篇</a>"""
                     prev_article = '上一篇：<a href="'+self.HTML_url(self.arr[m].md_url, True)+'">'+self.arr[m].title+'</a>' 
         
-        with open(self.arr[listNumber].md_url, 'r', encoding='utf-8') as raw_File:
-            raw_Data = raw_File.read()        
-
-        out_path = self.HTML_url('{}/{}'.format(self.dir_public, self.arr[listNumber].md_url) )  #输出地址及HTML文件名称结构
-        if self.arr[listNumber].use_markdownmodule == "Yes":
-            html_content = markdown.markdown( raw_Data, extensions=['markdown.extensions.toc', 'markdown.extensions.tables', 'markdown.extensions.fenced_code',  'markdown.extensions.meta'] )
-        else:
-            html_content = raw_Data
         post_html_content = self.template_post.replace('{{title}}', self.arr[listNumber].title)\
             .replace('{{site-name}}',self.site_name)\
             .replace('{{date}}', self.arr[listNumber].date)\
             .replace('{{post-content}}', html_content)\
-            .replace('{{tags}}', self.arr[listNumber].tags)\
+            .replace('{{category}}', self.arr[listNumber].category)\
             .replace('{{prev_article}}',prev_article)\
             .replace('{{next_article}}',next_article)\
             .replace('{{keywords}}', self.arr[listNumber].keywords)\
             .replace('{{description}}',self.arr[listNumber].description)
             #.replace("{{menu}}", self.menu)
-        
-        with open(out_path, 'w', encoding='utf-8', errors='xmlcharrefreplace') as out_File:
-            out_File.write(post_html_content)
-        print('使用线程%s生成文章：《%s》,其标签为：%s，地址在：%s'%(str, self.arr[listNumber].title, self.arr[listNumber].tags, out_path))
+        File_io(out_path, "w", "utf-8", DATA=post_html_content)
+        print('使用线程%s生成文章：《%s》,其标签为：%s，地址在：%s'%(str, self.arr[listNumber].title, self.arr[listNumber].category, out_path))
     
-    """生成目录"""
+    """生成目录，定制的，没有办法通用"""
     def Create_archive(self):
         print('生成目录中')
         temp = self.archlink_Detail[0]
-        temp_first = self.archlink_Detail[1]
+        #temp_first = self.archlink_Detail[1]
+        temp_first = temp
         page_nav_l = self.page_nav_l
         page_nav_r = self.page_nav_r
         posts_url = None
@@ -263,16 +290,16 @@ class md2html(object):
                     a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)               
-                    s1 =  s1+a
-            posts_url = "{}/index.html".format(self.dir_public)
-            with open(posts_url,'w',encoding='utf-8') as only_onepg:
-                only_onepg.write(self.template_acrchive.replace('{{page_nav}}',s1)\
-                .replace('{{title}}',self.site_name)\
-                .replace('{{site-name}}',self.site_name)\
-                .replace('{{nav}}','') \
-                #.replace("{{menu}}", self.menu) \
-                )                 
-            self.sitemap(posts_url)
+                    s1 =  s1+"\n\t\t"+a
+            posts_url = "{}/{}/index.html".format(self.dir_public,self.dir_pages)
+            File_io(posts_url, "w", "utf-8", \
+                  DATA=self.template_acrchive.replace('{{page_nav}}',s1)\
+                   .replace('{{title}}',self.site_name)\
+                   .replace('{{site-name}}',self.site_name)\
+                   .replace('{{nav}}','') \
+                   #.replace("{{menu}}", self.menu) 
+                )
+            self.sitemap(posts_url, Mode="a")
         elif(self.pages == 1): #第一页没有pre b
             print("b")
             s1 = ''
@@ -281,17 +308,17 @@ class md2html(object):
                     a = temp_first.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
-                    s1 =  s1+a
-            posts_url = "{}/index.html".format(self.dir_public)
-            with open(posts_url,'w',encoding='utf-8') as pg:
-                pg.write(self.template_acrchive\
-                .replace('{{page_nav}}',s1)\
-                .replace('{{title}}',self.site_name)\
-                .replace('{{site-name}}',self.site_name)\
-                .replace('{{nav}}',page_nav_r.replace('{{right-link}}','{}/'.format(self.dir_pages) + str(self.pages+1)+'.html'))\
-                #.replace("{{menu}}", self.menu) \
+                    s1 =  s1+"\n\t\t"+a
+            posts_url = "{}/{}/index.html".format(self.dir_public,self.dir_pages)
+            File_io(posts_url, "w", "utf-8",\
+                DATA = self.template_acrchive.replace('{{page_nav}}',s1)\
+                       .replace('{{title}}',self.site_name)\
+                       .replace('{{site-name}}',self.site_name)\
+                       .replace('{{nav}}',page_nav_r.replace('{{right-link}}','{}.html'.format( self.pages+1 ) ) )\
+                      #.replace('{{nav}}',page_nav_r.replace('{{right-link}}','{}/{}.html'.format( self.dir_pages,str(self.pages+1) ) ) )\
+                      #.replace("{{menu}}", self.menu) \
                 )
-            self.sitemap(posts_url)
+            self.sitemap(posts_url,Mode="a")
         elif(self.pages == 2 and (self.is_only2page == False) ): #由递归衰减而到的第2页 c
             print("c")
             s1 = ''
@@ -300,17 +327,16 @@ class md2html(object):
                     a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
-                    s1 =  s1+a
-            posts_url = "{}/{}/".format(self.dir_public, self.dir_pages) + str(self.pages)+".html"
-            with open(posts_url,'w',encoding='utf-8') as pg:
-                pg.write(self.template_acrchive\
-                .replace('{{page_nav}}',s1)\
-                .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
-                .replace('{{site-name}}',self.site_name)\
-                .replace('{{nav}}', page_nav_l.replace('{{left-link}}','../index.html')+page_nav_r.replace('{{right-link}}',str(self.pages+1)+'.html'))\
-                #.replace("{{menu}}", self.menu) \
+                    s1 =  s1+"\n\t\t"+a
+            posts_url = '{}/{}/{}.html'.format(self.dir_public, self.dir_pages, self.pages)
+            File_io(posts_url, "w", "utf-8", \
+                DATA = self.template_acrchive.replace('{{page_nav}}',s1)\
+                    .replace('{{title}}',"第{}页|{}".format(str(self.pages), self.site_name) )\
+                    .replace('{{site-name}}',self.site_name)\
+                    .replace('{{nav}}', page_nav_l.replace('{{left-link}}','index.html')+page_nav_r.replace('{{right-link}}',str(self.pages+1)+'.html'))\
+                   #.replace("{{menu}}", self.menu) 
                 )
-            self.sitemap(posts_url)    
+            self.sitemap(posts_url,Mode="a")    
         elif(self.is_only2page): #如果一开始就是只有2页便执行如下代码 d
             print("d")
             s1 = ''
@@ -319,17 +345,16 @@ class md2html(object):
                     a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
-                    s1 =  s1+a
-            posts_url = "{}/{}/".format(self.dir_public, self.dir_pages) + str(self.pages)+".html"
-            with open(posts_url,'w',encoding='utf-8') as pg:
-                pg.write(self.template_acrchive\
-                .replace('{{page_nav}}',s1)\
-                .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
+                    s1 =  s1+"\n\t\t"+a
+            posts_url = '{}/{}/{}.html'.format(self.dir_public, self.dir_pages, self.pages)
+            File_io(posts_url, "w", "utf-8",\
+                DATA = self.template_acrchive.replace('{{page_nav}}',s1)\
+                .replace('{{title}}',"第{}页|{}".format(str(self.pages), self.site_name) )\
                 .replace('{{site-name}}',self.site_name)\
-                .replace('{{nav}}', page_nav_l.replace('{{left-link}}','../index.html'))\
+                .replace('{{nav}}', page_nav_l.replace('{{left-link}}','index.html'))\
                 #.replace("{{menu}}", self.menu) \
-                )
-            self.sitemap(posts_url)
+                )    
+            self.sitemap(posts_url, Mode="a")
         elif(self.pages*self.articleMax >= self.post_num and ((self.pages-1)*self.articleMax <= self.post_num ) ): #最后一页 e
             print("e")
             s1 = '' 
@@ -338,17 +363,16 @@ class md2html(object):
                     a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
-                    s1 =  s1+a
-            posts_url = "{}/{}/".format(self.dir_public, self.dir_pages) + str(self.pages)+".html"
-            with open(posts_url,'w',encoding='utf-8') as pg:
-                pg.write(self.template_acrchive\
-                .replace('{{page_nav}}',s1)\
-                .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
-                .replace('{{site-name}}',self.site_name)\
-                .replace('{{nav}}', page_nav_l.replace('{{left-link}}',str(self.pages-1)+'.html'))\
-                #.replace("{{menu}}", self.menu) \
+                    s1 =  s1+"\n\t\t"+a
+            posts_url = '{}/{}/{}.html'.format(self.dir_public, self.dir_pages, self.pages)
+            File_io(posts_url, "w", "utf-8",\
+                DATA = self.template_acrchive.replace('{{page_nav}}',s1)\
+                        .replace('{{title}}',"第{}页|{}".format(str(self.pages), self.site_name) )\
+                        .replace('{{site-name}}',self.site_name)\
+                        .replace('{{nav}}', page_nav_l.replace('{{left-link}}',str(self.pages-1)+'.html'))\
+                       #.replace("{{menu}}", self.menu) \
                 )
-            self.sitemap(posts_url) 
+            self.sitemap(posts_url, Mode="a") 
         else:  #一般页面 f
             print("f")
             s1 = ''
@@ -357,39 +381,34 @@ class md2html(object):
                     a = temp.replace('{{date}}',self.arr[i].date.replace(" ", "")[0:10])\
                     .replace('{{md_url}}',self.HTML_url(self.arr[i].md_url))\
                     .replace('{{post_name}}',self.arr[i].title)       
-                    s1 =  s1+a
-            posts_url = "{}/{}/".format(self.dir_public, self.dir_pages) + str(self.pages)+".html"
-            with open(posts_url,'w',encoding='utf-8') as pg:
-                pg.write(self.template_acrchive\
-                .replace('{{page_nav}}',s1)\
-                .replace('{{title}}','第'+str(self.pages)+'页 | '+ self.site_name)\
+                    s1 =  s1+"\n\t\t"+a
+            posts_url = '{}/{}/{}.html'.format(self.dir_public, self.dir_pages, self.pages)
+            File_io(posts_url, "w", "utf-8",\
+                DATA =  self.template_acrchive.replace('{{page_nav}}',s1)\
+                .replace('{{title}}',"第{}页|{}".format(str(self.pages), self.site_name) )\
                 .replace('{{site-name}}',self.site_name)\
                 .replace('{{nav}}', page_nav_l.replace('{{left-link}}',str(self.pages-1)+'.html')+page_nav_r.replace('{{right-link}}',\
                 str(self.pages+1)+'.html'))\
                 #.replace("{{menu}}", self.menu) \
                 )
-            self.sitemap(posts_url)
+            self.sitemap(posts_url ,Mode="a")
         self.pages -=1
         if self.pages >0:
             self.Create_archive()
       
     """生成站点地图sitemap"""
-    def sitemap(self, URL=None): 
+    def sitemap(self, URL=None, Mode="w"): 
         if URL == None:
             sitemapstring = ""
             for i in self.arr:
                 sitemapstring = sitemapstring + self.site_url +"/"+self.HTML_url(i.md_url) + "\n"
             try:
-                with open("{}/sitemap.txt".format(self.dir_public), "w",encoding="utf-8") as sitemap:
-                    sitemap.write(sitemapstring)
-                sitemap.close()
+                File_io("{}/sitemap.txt".format(self.dir_public) , Mode, "utf-8", DATA= sitemapstring)
             except:
                 return False
         else:
             try:
-                with open("{}/sitemap.txt".format(self.dir_public), "a",encoding="utf-8") as sitemap:
-                    sitemap.write(self.site_url +URL.replace("{}".format(self.dir_public),"") + "\n")
-                sitemap.close()
+                File_io("{}/sitemap.txt".format(self.dir_public) , Mode, "utf-8", DATA="{}{}\n".format( self.site_url, URL.replace(self.dir_public, "") )  )
             except:
                 return False
         return True
@@ -401,46 +420,49 @@ class md2html(object):
         if str == "PreGetmdDetail":
             for i in range(first, last):
                 self.GetmdDetail(i)
+                print("id: %s"%i)
         else:
-            for i in range(first, last):
-                if i < 2:
-                    self.parse_to_HTML(i, str)
-                elif os.path.isfile( "{}/{}".format(self.dir_public, self.HTML_url(self.arr[i].md_url) ) ):
-                    continue
-                else:    
-                    self.parse_to_HTML(i, str)
+            for i in range(first, last):  
+                self.parse_to_HTML(i, str)
     
     """按长度确定节点可控制的长度，以此创建节点"""
-    def CreatNode(self, length):
-        self.thread_str1 = thread_str(0, length//4)
-        self.thread_str2 = thread_str(length//4, length//2)
-        self.thread_str3 = thread_str(length//2, 3*length//4)
-        self.thread_str4 = thread_str(3*length//4, length)
-        print("四个结点已创建") 
+    def CreatNode(self, length, thread_num):
+        for i in range(thread_num):
+            self.thread_srtarr.append( thread_str( i*length//thread_num, (i+1)*length//thread_num ) )
+        print("已创建%s个结点用于存储区段信息"%thread_num)
+        
     
     """最近文章"""
     def Recent_posts(self):
         out_file = "{}/{}/recent_posts.html".format(self.dir_public, self.dir_extra)  #_public/extra/recent_posts.html
-        s = "<p>recent posts: </p>\n<ul>\n"
+        s = '<h2>Recent Posts</h2>\n<ul class="list_01">\n'
         for k in range(8):
-            s1 = '<li><a href="/{}" target="_blank">{}</a></li>\n'.format(self.HTML_url( self.arr[k].md_url ) , self.arr[k].title)
+            s1 = '\t<li><a href="/{}">{}</a></li>\n'.format(self.HTML_url( self.arr[k].md_url ) , self.arr[k].title)
             s += s1
         s += "</ul>\n"
         with open(out_file, "w", encoding="utf-8") as renc:
             renc.write(s)
         renc.close()
-    
+        
     """"主函数 调度用"""
-    def Main(self):
-        isDIR("template")
-        if ( isFILE("template/post_tem.html") and isFILE("template/archive_tem.html") and isFILE("template/subtle_set.html") ):
-            with open("template/post_tem.html", "r", encoding="utf-8") as aa:
-                self.template_post = aa.read()
-            with open("template/archive_tem.html", "r", encoding="utf-8") as bb:
-                self.template_acrchive = bb.read()
-            with open("template/subtle_set.html","r", encoding="utf-8") as cc:
-                archlink_Detail_data = cc.read()
-            self.archlink_Detail = re.compile("archive_post:(.*?)\n", re.S).findall(archlink_Detail_data)   
+    def Main(self, dir_template):
+        temp_posts = "{}/post.html".format(dir_template)         #post_tem.html => post.html
+        temp_archive = "{}/page.html".format(dir_template)       #archive_tem.html => page.html 原首页移到pages目录下。生成首页函数进行了修改。
+        temp_subtle = "{}/subtle_set.html".format(dir_template)  #未变
+        
+        isDIR(dir_template)
+        
+        if ( isFILE(temp_posts) and isFILE(temp_archive) and isFILE(temp_subtle) ):
+            """单页模板"""
+            self.template_post = File_io(temp_posts, "r", "utf-8")
+            
+            """导航页模板"""
+            self.template_acrchive = File_io(temp_archive, "r", "utf-8")
+           
+            """填充上面两个模板需要的小玩意"""
+            archlink_Detail_data = File_io(temp_subtle, "r", "utf-8")
+            
+            self.archlink_Detail = re.compile("archive_post:(.*?)\n", re.S).findall(archlink_Detail_data)  
             self.page_nav_l = re.search('page_nav_l:(.*?)\n', archlink_Detail_data, re.S).group(1)
             self.page_nav_r = re.search('page_nav_r:(.*?)\n', archlink_Detail_data, re.S).group(1)
             """2022.9.3更新：使用jQuery load形式加载导航，舍弃之前做法。"""
@@ -453,32 +475,33 @@ class md2html(object):
         self.findALLFile()
         len_md = len( self.md_rawlist )
         
-        """创建4个对象"""
-        self.CreatNode(len_md)
+        thread_list = list()
+        thread_num = 5
+        
+        self.CreatNode(len_md, thread_num)
         
         """使用线程读取md文件细节"""
-        if len_md >= 20:
-            p1 = threading.Thread( target=self.parse_main, args=( self.thread_str1, "PreGetmdDetail") )
-            p2 = threading.Thread( target=self.parse_main, args=( self.thread_str2, "PreGetmdDetail") )
-            p3 = threading.Thread( target=self.parse_main, args=( self.thread_str3, "PreGetmdDetail") )
-            p4 = threading.Thread( target=self.parse_main, args=( self.thread_str4, "PreGetmdDetail") )
-            p1.start()
-            p2.start()
-            p3.start()
-            p4.start()
-            p1.join()
-            p2.join()
-            p3.join()
-            p4.join()
+ 
+        if len_md >= 40:
+            for i in range(thread_num):
+                thread_list.append( threading.Thread( target=self.parse_main, args=( self.thread_srtarr[i] , "PreGetmdDetail" ) ) )
+            for i in range(thread_num):
+                thread_list[i].start()
+            
+            for i in range(thread_num):
+                thread_list[i].join()
         else:
             for k in range(len_md):
                 self.GetmdDetail(k)
-                
+
+        thread_list.clear()               #清空线程列表
+        self.md_rawlist.clear()
+        
         md2html.post_num = len(self.arr)
         if self.post_num == 0:
             return False
         
-        """排序"""
+        """直接插入排序"""
         if self.post_num >=2:
             for i in range(1, self.post_num):#这里不需要-1，因为下面已经有j = i-1，否则在列表最后一个排不到
                 key = self.arr[i] 
@@ -487,12 +510,14 @@ class md2html(object):
                     self.arr[j+1] = self.arr[j]
                     j-=1
                 self.arr[j+1] = key
-        #self.PrintArr()
+        
         self.sitemap() #生成sitemap.txt文件
+        
+        """最近文章"""
         self.Recent_posts()
         
         """置顶"""
-        topArr = []
+        topArr = list()
         top = self.post_num - 1
         while top>=0:
             if(self.arr[top].topping.replace(" ", "") == "Yes"):
@@ -501,7 +526,7 @@ class md2html(object):
             top -= 1    
         self.arr = topArr + self.arr              #两个列表合并
         del topArr                                #删除列表topArr
-       
+        
         postsnum = 0 #能显示的有多少
         for i in range(self.post_num):
             if self.arr[i].is_archive == "Yes":
@@ -509,66 +534,95 @@ class md2html(object):
         self.pages = int( postsnum/(self.articleMax) )  #向下取整
         if (self.pages * self.articleMax) < postsnum:
             self.pages += 1
-        print('博客导航有%s页，每页有%s篇文章（%s篇非archive显示），合计%s篇文章。'%(self.pages,self.articleMax, self.post_num-postsnum, self.post_num))
+        print('博客导航有%s页，每页最大含%s篇文章（%s篇非archive显示），合计转换%s篇文章。'%(self.pages, self.articleMax, self.post_num-postsnum, self.post_num))
         if(self.pages == 2):
             self.is_only2page = True      #判断一开始就是不是只有两个页面
         
-                
+        
+        """
         if self.post_num == len_md:
             pass
         else:
-            self.CreatNode(self.post_num)
-        if self.post_num>=20: 
-            p5 = threading.Thread( target=self.parse_main, args=( self.thread_str1,'t5') )
-            p6 = threading.Thread( target=self.parse_main, args=( self.thread_str2,'t6') )
-            p7 = threading.Thread( target=self.parse_main, args=( self.thread_str3,'t7') ) 
-            p8 = threading.Thread( target=self.parse_main, args=( self.thread_str4,'t8') )
-            p5.start()
-            p6.start()
-            p7.start()
-            p8.start()
-            p5.join()  
-            p6.join()
-            p7.join()
-            p8.join()
+            for i in range(thread_num):
+                self.thread_srtarr[i].first =  i* self.post_num//thread_num
+                self.thread_srtarr[i].last = (i+1)*self.post_num//thread_num
+        """
+        
+        """多线程渲染网页
+        if self.post_num>=35: 
+            for i in range(thread_num):
+                thread_list.append( threading.Thread( target=self.parse_main, args=( self.thread_srtarr[i] , str(i)) ) )
+            for i in range(thread_num):
+                thread_list[i].start()
+            for i in range(thread_num):
+                thread_list[i].join()
         else:
             for j in range(self.post_num): 
-                self.parse_to_HTML(j, "没使用线程")            
+                self.parse_to_HTML(j, "Main")            
+        """
+        
+        """单线程渲染网页"""
+        for j in range(self.post_num): 
+            self.parse_to_HTML(j, "Main")
+        
         
         for i in range(self.post_num-1,-1, -1):  #倒序删除符合条件的元素
             if self.arr[i].is_archive != "Yes":
                 del ( self.arr[i] )
         self.post_num = len(self.arr)                    
         
-        #生成目录
+        """生成目录"""
         self.Create_archive()
         
+        """删除各个结点"""
+        thread_list.clear()
+        self.thread_srtarr.clear()
+        self.arr.clear()
+        
         return True        
-            
+
+
+    
+
 if __name__ == "__main__":
+    
     start = time.time()
-    """-------------------------------------------------------------------------------"""
-    source = "source"    #文章源
- 
-    output_ALL = "_public"  #输出地址总文件夹
+    """---------------------------------------------------------------------------------"""
+    source = "raw"            #文章源
+    output_ALL = "_public"    #输出地址总文件夹
     output_DETAIL = "posts"   #输出地址具体的文件夹 _public/posts
-    output_PAGE = "pages"    #输出地址分页文件夹 _public/pages
+    output_PAGE = "pages"     #输出地址分页文件夹 _public/pages
+    output_RECENTPOSTS = "extra"
+    dir_template = "template/NEW"    #模板源
     
     isDIR(output_ALL)
     
-    outfilePATH = "{}/{}".format(output_ALL, output_DETAIL)
+    outfilePATH = "{}/{}".format(output_ALL, output_DETAIL) #_public/posts
     isDIR(outfilePATH)
     
-    outfilePAGE = "{}/{}".format(output_ALL, output_PAGE)
+    outfilePAGE = "{}/{}".format(output_ALL, output_PAGE) #_public/pages
     isDIR(outfilePAGE) 
-    """-----------------------------------------------------------------------------------"""
     
-    site_name = "月牙博客"   #博客名称
-    site_url = "http://blog.jtjiang.top"  #博客网址
-    page_MaxNum = 20      #页面显示最大数量
+    outfileRECENT = "{}/{}".format(output_ALL, output_RECENTPOSTS) #_public/extra
+    isDIR(outfileRECENT)
     
-    a = md2html(source, site_name, site_url, page_MaxNum, output_ALL, output_DETAIL, output_PAGE)
-    a.Main()
-    del a
+    """-------------------------生成站点页首-----------------------------------------------------"""
+    """类别category有：life, work, study, exam, trip"""
+    site_name = ""                #博客名称
+    site_url = ""                 #博客网址
+    page_MaxNum = 12      #页面显示最大数量
+    
+    md = md2html(source, site_name, site_url, page_MaxNum, output_ALL, output_DETAIL, output_PAGE, output_RECENTPOSTS)
+    md.Main(dir_template)
+    del md
+    
     """------------------------------------------------------------------------------------"""
-    print("程序总用时%s"(time.time()-start))
+    print("程序总用时%s秒"%(time.time()-start) )
+    
+    """记录运行时间戳-----------------------------------------------------------------------"""
+                   #https://zhuanlan.zhihu.com/p/45113970          
+    File_io("work.log", "a", "utf-8",\
+    DATA = "worklog:{}\n".format(  \
+                time.strftime( '%Y.%m.%d.%H:%M:%S', time.localtime(start)   ) \
+                )  \
+    )  
