@@ -42,4 +42,4 @@
  
  `{{category}}`：标签
  
- <del>`{{menu}}`: 菜单 使用模板文件`subtle_set.html`中的`menu:`后面的片段</del>，目前已经启用该做法，使用jquery外挂链接
+ <del>`{{menu}}`: 菜单 使用模板文件`subtle_set.html`中的`menu:`后面的片段</del>，目前已经弃用该做法，使用jquery外挂链接
